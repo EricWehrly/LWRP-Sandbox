@@ -26,8 +26,8 @@ public class TextureData : UpdateableData
         savedMaxHeight = maxHeight;
         savedMinHeight = minHeight;
 
-        // material.SetFloat("minHeight", minHeight);
-        // material.SetFloat("maxHeight", maxHeight);
+        material.SetFloat("minHeight", minHeight);
+        material.SetFloat("maxHeight", maxHeight);
     }
 
     [System.Serializable]
