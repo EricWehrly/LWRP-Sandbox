@@ -5,6 +5,7 @@ public class EndlessTerrain : MonoBehaviour
 {
     const float viewerMoveThresholdForChunkUpdate = 25f;
     const float sqrViewerMoveThresholdForChunkUpdate = viewerMoveThresholdForChunkUpdate * viewerMoveThresholdForChunkUpdate;
+    const float colliderGenerationDistanceThreshold = 5;
 
     public LODInfo[] detailLevels;
     public static float maxViewDist;
@@ -35,6 +36,14 @@ public class EndlessTerrain : MonoBehaviour
     void Update()
     {
         viewerPosition = new Vector2(viewer.position.x, viewer.position.z) / mapGenerator.terrainData.uniformScale;
+
+        if(viewerPosition != lastViewerPosition)
+        {
+            foreach(TerrainChunk chunk in terrainChunksVisibleLastUpdate)
+            {
+                chunk.UpdateCollisionMesh();
+            }
+        }
 
         if ((lastViewerPosition - viewerPosition).sqrMagnitude > sqrViewerMoveThresholdForChunkUpdate)
         {
@@ -183,6 +192,16 @@ public class EndlessTerrain : MonoBehaviour
             }
 
             SetVisible(visible);
+        }
+
+        public void UpdateCollisionMesh()
+        {
+            float sqareDistanceFromViewerToEdge = bounds.SqrDistance(viewerPosition);
+
+            if(sqareDistanceFromViewerToEdge < colliderGenerationDistanceThreshold * colliderGenerationDistanceThreshold)
+            {
+                // meshCollider.sharedMesh = lodMeshes[colliderLod]
+            }
         }
 
         public void SetVisible(bool visible)
