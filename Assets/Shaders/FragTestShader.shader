@@ -1,9 +1,5 @@
 ﻿Shader "Custom/TerrainTest" {
 
-	Properties
-	{
-		_Color("Color", Color) = (1,1,1,1)
-	}
 		SubShader
 	{
 		Tags { "RenderType" = "Opaque" }
@@ -11,7 +7,6 @@
 
 		Pass
 		{
-			Name "StandardLit"
 			Tags{"LightMode" = "LightweightForward"}
 
 			CGPROGRAM
@@ -19,7 +14,6 @@
 			#pragma fragment frag
 			#pragma target 3.0
 			#pragma glsl
-		// #pragma multi_compile_instancing
 		#pragma multi_compile_fog
 
 		#include "UnityCG.cginc"
@@ -53,18 +47,30 @@
 		half3 worldNormal : TEXCOORD1;
 		fixed4 diff : COLOR0; // diffuse lighting color
 		fixed3 ambient : COLOR1;
+		UNITY_FOG_COORDS(1)
 	};
 
 	float inverseLerp(float a, float b, float value) {
+
 		return saturate((value - a) / (b - a));
 	}
 
 	float3 triplanar(float3 worldPos, float scale, float3 blendAxes, int textureIndex) {
+
 		float3 scaledWorldPos = worldPos / scale;
 		float3 xProjection = UNITY_SAMPLE_TEX2DARRAY(baseTextures, float3(scaledWorldPos.y, scaledWorldPos.z, textureIndex)) * blendAxes.x;
 		float3 yProjection = UNITY_SAMPLE_TEX2DARRAY(baseTextures, float3(scaledWorldPos.x, scaledWorldPos.z, textureIndex)) * blendAxes.y;
 		float3 zProjection = UNITY_SAMPLE_TEX2DARRAY(baseTextures, float3(scaledWorldPos.x, scaledWorldPos.y, textureIndex)) * blendAxes.z;
 		return xProjection + yProjection + zProjection;
+	}
+
+	float getDrawStrength(int index, float heightPercent) {
+
+		float lerpA = -baseBlends[index] / 2.0 - epsilon;
+		float lerpB = baseBlends[index] / 2.0;
+		float lerpC = heightPercent - baseStartHeights[index];
+
+		return  inverseLerp(lerpA, lerpB, lerpC);
 	}
 
 	v2f vert(float4 vertex : POSITION, float3 normal : NORMAL)
@@ -79,36 +85,31 @@
 		o.diff = nl * _LightColor0;
 		o.ambient = ShadeSH9(half4(o.worldNormal, 1));
 		TRANSFER_SHADOW(o)
+		UNITY_TRANSFER_FOG(o, o.vertex);
 		return o;
 	}
 
 	fixed4 _Color;
 	fixed4 frag(v2f IN) : SV_Target
 	{
-
 		float heightPercent = inverseLerp(minHeight,maxHeight, IN.worldPos.y);
 		float3 blendAxes = abs(IN.worldNormal);
-		// blendAxes /= blendAxes.x + blendAxes.y + blendAxes.z;
 		blendAxes /= dot(blendAxes, 1.0);
 
-		fixed3 col = _Color;
 		for (int i = 0; i < layerCount; i++) {
-			float lerpA = -baseBlends[i] / 2.0 - epsilon;
-			float lerpB = baseBlends[i] / 2.0;
-			float lerpC = heightPercent - baseStartHeights[i];
-			float drawStrength = inverseLerp(lerpA, lerpB, lerpC);
+			float drawStrength = getDrawStrength(i, heightPercent);
 
 			float3 baseColor = baseColors[i] * baseColorStrength[i];
 			float3 textureColor = triplanar(IN.worldPos, baseTextureScales[i], blendAxes, i) * (1 - baseColorStrength[i]);
-			col = col * (1 - drawStrength) + (baseColor + textureColor) * drawStrength;
+			_Color.rgb = _Color.rgb * (1 - drawStrength) + (baseColor + textureColor) * drawStrength;
 		}
-		_Color.rgb = col;
 
 		// compute shadow attenuation (1.0 = fully lit, 0.0 = fully shadowed)
 		fixed shadow = SHADOW_ATTENUATION(IN);
 		// darken light's illumination with shadow, keep ambient intact
 		fixed3 lighting = IN.diff * shadow + IN.ambient;
 		_Color.rgb *= lighting;
+		UNITY_APPLY_FOG(i.fogCoord, _Color);
 
 		// UNITY_APPLY_FOG(IN.fogCoord, _Color);
 		return _Color;
