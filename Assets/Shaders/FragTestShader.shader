@@ -5,8 +5,6 @@ Shader "Custom/TerrainTest" {
 	Properties
 	{
 		_Color("Color", Color) = (1,1,1,1)
-		testTexture("Texture", 2D) = "white"{}
-		testScale("Scale", Float) = 1
 	}
 		SubShader
 	{ 
@@ -15,15 +13,19 @@ Shader "Custom/TerrainTest" {
 
 		Pass
 		{
+			Name "StandardLit"
+			Tags{"LightMode" = "LightweightForward"}
+
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma target 3.0
 			#pragma glsl
-			// #include "ImprovedPerlinNoise3D.cginc"
+			#pragma multi_compile_instancing
 			#pragma multi_compile_fog
 
 			#include "UnityCG.cginc"
+			#include "UnityLightingCommon.cginc" // for _LightColor0
 
 			const static int maxLayerCount = 8;
 			const static float epsilon = 1E-4;
@@ -38,20 +40,14 @@ Shader "Custom/TerrainTest" {
 			float minHeight;
 			float maxHeight;
 
-			sampler2D testTexture;
-			float testScale;
-
 			UNITY_DECLARE_TEX2DARRAY(baseTextures);
-
-			struct appdata {
-				float4 vertex : POSITION;
-			};
 
 			struct v2f
 			{
 				float4 vertex : SV_POSITION;
 				float3 worldPos : TEXCOORD0;
 				half3 worldNormal : TEXCOORD1;
+				fixed4 diff : COLOR0; // diffuse lighting color
 			};
 
 			float inverseLerp(float a, float b, float value) {
@@ -72,18 +68,21 @@ Shader "Custom/TerrainTest" {
 				o.worldPos = mul(unity_ObjectToWorld, vertex);
 				o.vertex = UnityObjectToClipPos(vertex);
 				o.worldNormal = UnityObjectToWorldNormal(normal);
+
+				half nl = max(0, dot(o.worldNormal, _WorldSpaceLightPos0.xyz));
+				// factor in the light color
+				o.diff = nl * _LightColor0;
 				return o;
 			}
 
 			fixed4 _Color;
 			fixed4 frag(v2f IN) : SV_Target
 			{
-				// _Color.r = 0;
-				// _Color.g = 0;
 
 				float heightPercent = inverseLerp(minHeight,maxHeight, IN.worldPos.y);
 				float3 blendAxes = abs(IN.worldNormal);
-				blendAxes /= blendAxes.x + blendAxes.y + blendAxes.z;
+				// blendAxes /= blendAxes.x + blendAxes.y + blendAxes.z;
+				blendAxes /= dot(blendAxes, 1.0);
 
 				fixed3 col = _Color;
 				for (int i = 0; i < layerCount; i++) {
@@ -94,14 +93,11 @@ Shader "Custom/TerrainTest" {
 
 					float3 baseColor = baseColors[i] * baseColorStrength[i];
 					float3 textureColor = triplanar(IN.worldPos, baseTextureScales[i], blendAxes, i) * (1 - baseColorStrength[i]);
-					// col = textureColor;
-
-					// o.Albedo = o.Albedo * (1 - drawStrength) + (baseColor + textureColor) * drawStrength;
 					col = col * (1 - drawStrength) + (baseColor + textureColor) * drawStrength;
 				}
 				_Color.rgb = col;
+				_Color *= IN.diff;
 
-				// _Color = tex2D(testTexture, IN.worldPos.yz / testScale);
 				// UNITY_APPLY_FOG(IN.fogCoord, _Color);
 				return _Color;
 			}
