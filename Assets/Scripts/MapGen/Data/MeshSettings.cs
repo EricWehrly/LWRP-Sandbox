@@ -26,11 +26,11 @@ public class MeshSettings : UpdateableData
         {
             if (useFlatShading)
             {
-                return supportedChunkSizes[flatShadedSizeIndex] + 1;
+                return supportedChunkSizes[flatShadedSizeIndex] + 5;
             }
             else
             {
-                return supportedChunkSizes[chunkSizeIndex] + 1;
+                return supportedChunkSizes[chunkSizeIndex] + 5;
             }
         }
     }
