@@ -20,16 +20,16 @@ public class MeshData
         this.useFlatShading = useFlatShading;
 
         int numMeshEdgeVertices = (verticesPerLine - 2) * 4 - 4;
-        int numEdgeConnectionVertcies = (skipIncrement - 1) * (verticesPerLine - 5) / skipIncrement * 4;
+        int numEdgeConnectionVertices = (skipIncrement - 1) * (verticesPerLine - 5) / skipIncrement * 4;
         int numMainVerticesPerLine = (verticesPerLine - 5) / skipIncrement + 1;
         int numMainVertices = numMainVerticesPerLine * numMainVerticesPerLine;
 
-        vertices = new Vector3[numMeshEdgeVertices + numEdgeConnectionVertcies + numMainVertices];
+        vertices = new Vector3[numMeshEdgeVertices + numEdgeConnectionVertices + numMainVertices];
         uvs = new Vector2[vertices.Length];
 
         int numMeshEdgeTriangles = 8 * (verticesPerLine - 4);
         int numMainTriangles = (numMainVerticesPerLine - 1) * (numMainVerticesPerLine - 1) * 2;
-        triangles = new int[numMeshEdgeTriangles + numMainTriangles * 3];
+        triangles = new int[(numMeshEdgeTriangles + numMainTriangles) * 3];
 
         outOfMeshVertices = new Vector3[verticesPerLine * 4 - 4];
         outOfMeshTriangles = new int[24 * (verticesPerLine - 2)];
@@ -168,8 +168,6 @@ public class MeshData
         mesh.vertices = vertices;
         mesh.triangles = triangles;
         mesh.uv = uvs;
-        mesh.normals = bakedNormals;
-
         if (useFlatShading)
         {
             mesh.RecalculateNormals();
